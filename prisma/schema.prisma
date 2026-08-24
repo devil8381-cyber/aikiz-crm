@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  password     String
+  role         String   @default("AGENT") // ADMIN or AGENT
+  isActive     Boolean  @default(true)
+  phoneDisplay String   @default("") // Agent callback number shown in SMS templates
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  leads         Lead[]
+  callbacks     Callback[]
+  activityLogs  ActivityLog[]
+  emailLogs     EmailLog[]
+  smsTemplates   SmsTemplate[]
+  emailTemplates EmailTemplate[]
+  smsLogs        SmsLog[]
+}
+
+model SmsTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @default("Default SMS")
+  body      String
+  isDefault Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Lead {
+  id                  String   @id @default(cuid())
+  firstName           String
+  lastName            String
+  phone               String
+  email               String   @default("")
+  address             String   @default("")
+  city                String   @default("")
+  state               String   @default("")
+  zipCode             String   @default("")
+  ssnLast4            String   @default("")
+  dateOfBirth         String   @default("")
+  caseType            String   @default("")
+  claimNumber         String   @default("")
+  dateOfIncident      String   @default("")
+  claimAmount         String   @default("")
+  attorneyName        String   @default("")
+  insuranceCarrier    String   @default("")
+  policyNumber        String   @default("")
+  incidentDescription String   @default("")
+  status              String   @default("New") // New, Interested, Signed, DNQ, Not Interested, Callback, VM
+  notes               String   @default("")
+  assignedToId        String?
+  lastContactedAt     DateTime? // updated whenever an email or SMS goes out to this lead
+  escalated           Boolean   @default(false)
+  escalatedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  assignedTo       User?             @relation(fields: [assignedToId], references: [id])
+  callbacks        Callback[]
+  tcpaForms        TcpaForm[]
+  documentRequests DocumentRequest[]
+  medicalRecords  MedicalRecord[]
+  activityLogs     ActivityLog[]
+  emailLogs        EmailLog[]
+  smsLogs          SmsLog[]
+  dripEnrollments  DripEnrollment[]
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([lastContactedAt])
+}
+
+model Callback {
+  id           String   @id @default(cuid())
+  leadId       String
+  userId       String
+  callbackDate String
+  callbackTime String
+  ampm         String
+  timezone     String
+  isCompleted  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([callbackDate])
+  @@index([userId])
+}
+
+model Script {
+  id        String   @id @default(cuid())
+  title     String   @default("Main Calling Script")
+  content   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TcpaForm {
+  id          String   @id @default(cuid())
+  leadId      String
+  formType    String
+  token       String   @unique @default(cuid())
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model DocumentRequest {
+  id               String    @id @default(cuid())
+  leadId           String
+  token            String    @unique @default(cuid())
+  isUsed           Boolean   @default(false)
+  uploadedFileName String    @default("")
+  openedAt         DateTime? // set when the claimant first opens the upload link
+  remindersSent    Int       @default(0)
+  lastReminderAt   DateTime?
+  createdAt        DateTime  @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([isUsed])
+}
+
+model MedicalRecord {
+  id               String    @id @default(cuid())
+  leadId           String
+  token            String    @unique @default(cuid())
+  fileName         String    @default("")
+  storedFileName   String    @default("")
+  fileMimeType     String    @default("")
+  fileSize         Int       @default(0)
+  uploadedAt       DateTime?
+  notes            String    @default("")
+  createdAt        DateTime  @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model SmsLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  leadId    String?
+  title     String   @default("")
+  body      String   @default("")
+  source    String   @default("manual") // manual | drip
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([leadId])
+}
+
+/// Tracks a lead's progress through an automated missed-contact drip sequence
+model DripEnrollment {
+  id           String    @id @default(cuid())
+  leadId       String
+  sequenceType   String    @default("MISSED_CONTACT") // MISSED_CONTACT | DOC_REMINDER
+  currentStep    Int       @default(0) // index into the sequence definition
+  status         String    @default("active") // active | paused | completed | cancelled
+  awaitingAgent  Boolean   @default(false) // true when the due step is an SMS a human must actually send
+  nextActionAt   DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextActionAt])
+  @@index([leadId])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  leadId      String?
+  action      String
+  details     String   @default("")
+  disposition String   @default("")
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model EmailLog {
+  id         String    @id @default(cuid())
+  userId     String?
+  leadId     String?
+  emailType  String
+  to         String    @default("")
+  subject    String    @default("")
+  status     String    @default("sent")
+  trackToken String?   @unique @default(cuid())
+  openedAt   DateTime?
+  openCount  Int       @default(0)
+  clickedAt  DateTime?
+  clickCount Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([leadId])
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  emailType String // TCPA_C1, TCPA_C2, TCPA_C3, MISSED_CALL, FOLLOWUP_VM, REQUEST_DOCS
+  subject   String
+  body      String
+  link      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, emailType])
+  @@index([userId])
+}
+
+model SystemSetting {
+  id    String   @id @default(cuid())
+  key   String   @unique
+  value String   @default("")
+  updatedAt DateTime @updatedAt
+}

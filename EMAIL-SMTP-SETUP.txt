@@ -1,0 +1,35 @@
+SMTP SETUP (Matthews & Associates)
+==================================
+
+Set these in Netlify → Site configuration → Environment variables
+(Do NOT commit real passwords to GitHub.)
+
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURE=true
+
+SMTP_CONSENT_USER=consent@matthewsassociate.com
+SMTP_CONSENT_PASS=***change-me***
+
+SMTP_CLAIMS_USER=claims@matthewsassociate.com
+SMTP_CLAIMS_PASS=***change-me***
+
+SMTP_INFO_USER=info@matthewsassociate.com
+SMTP_INFO_PASS=***change-me***
+
+SMTP_FROM_NAME=Matthews & Associates
+NEXTAUTH_URL=https://your-site.netlify.app
+
+Which mailbox is used:
+- TCPA C-1 / C-2 / C-3  → consent@matthewsassociate.com
+- Follow-up / VM        → claims@matthewsassociate.com
+- Request Documents     → claims@matthewsassociate.com
+
+If Hostinger requires port 587 instead:
+SMTP_PORT=587
+SMTP_SECURE=false
+
+After deploy run:
+  npx prisma db push
+
+CHANGE ALL MAILBOX PASSWORDS after testing — they were shared in chat.

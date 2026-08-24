@@ -1,0 +1,12 @@
+MEDICAL RECORDS DEPLOYMENT CHECKLIST
+
+1. Provision a private persistent disk/volume on the application host.
+2. Set UPLOAD_DIR to a directory on that volume (for example /data/crm-uploads).
+   Never use a public web directory for these files.
+3. Apply the database schema update before deploying:
+   npm run db:push
+4. Deploy the app. Claimant uploads are stored in UPLOAD_DIR and can be downloaded
+   only by the assigned agent or an administrator from the lead detail panel.
+
+The fallback /tmp/crm-uploads location is intended only for local development and
+is not durable on serverless hosts.

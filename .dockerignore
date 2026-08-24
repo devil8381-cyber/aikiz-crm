@@ -1,0 +1,14 @@
+node_modules
+.next
+git
+.gitignore
+db/*.db
+dev.log
+server.log
+*.md
+.env
+.env.local
+agent-ctx/
+worklog.md
+prisma/schema.postgres.prisma
+scripts/
